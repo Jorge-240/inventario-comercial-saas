@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  products  Product[]
+  categories Category[]
+  suppliers Supplier[]
+  customers Customer[]
+  purchases Purchase[]
+  sales     Sale[]
+  movements StockMovement[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  companyId    String
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id])
+  purchases    Purchase[]
+  sales        Sale[]
+  movements    StockMovement[]
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  products  Product[]
+}
+
+model Supplier {
+  id        String    @id @default(uuid())
+  companyId String
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  purchases Purchase[]
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  sales     Sale[]
+}
+
+model Product {
+  id          String    @id @default(uuid())
+  companyId   String
+  categoryId  String?
+  name        String
+  sku         String
+  brand       String?
+  unitPrice   Float     @default(0)
+  costPrice   Float     @default(0)
+  stock       Int       @default(0)
+  minStock    Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id])
+  category    Category? @relation(fields: [categoryId], references: [id])
+  saleItems   SaleItem[]
+  purchaseItems PurchaseItem[]
+  movements   StockMovement[]
+
+  @@unique([companyId, sku])
+}
+
+model Purchase {
+  id         String        @id @default(uuid())
+  companyId  String
+  supplierId String?
+  userId     String?
+  total      Float         @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  company    Company       @relation(fields: [companyId], references: [id])
+  supplier   Supplier?     @relation(fields: [supplierId], references: [id])
+  user       User?         @relation(fields: [userId], references: [id])
+  items      PurchaseItem[]
+}
+
+model PurchaseItem {
+  id         String   @id @default(uuid())
+  purchaseId String
+  productId  String
+  quantity   Int
+  unitCost   Float
+  total      Float
+
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model Sale {
+  id         String    @id @default(uuid())
+  companyId  String
+  customerId String?
+  userId     String?
+  total      Float     @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  company    Company   @relation(fields: [companyId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id])
+  items      SaleItem[]
+}
+
+model SaleItem {
+  id         String   @id @default(uuid())
+  saleId     String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  total      Float
+
+  sale       Sale     @relation(fields: [saleId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model StockMovement {
+  id          String   @id @default(uuid())
+  companyId   String
+  userId      String?
+  productId   String
+  type        String
+  quantity    Int
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+}
