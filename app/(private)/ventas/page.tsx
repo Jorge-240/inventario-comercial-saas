@@ -1,36 +1,16 @@
-import { getSession } from '@/lib/auth';
-import { db } from '@/lib/db';
+'use client';
+import { useEffect, useState } from 'react';
 
-export default async function SalesPage() {
-  const session = await getSession();
-  if (!session) return null;
+type Product = { id: string; name: string; sku: string; stock: number; unitPrice: number };
+type Customer = { id: string; name: string };
+type Line = { productId: string; quantity: string; unitPrice: string };
 
-  const sales = await db.sale.findMany({
-    where: { companyId: session.companyId },
-    orderBy: { createdAt: 'desc' },
-    take: 8,
-    include: { customer: true, items: { include: { product: true } } },
-  });
-
-  return (
-    <div className="p-6 md:p-10">
-      <p className="text-sm font-semibold text-brand-600">Ventas</p>
-      <h1 className="mt-1 text-3xl font-bold">Registro de ventas</h1>
-      <div className="mt-8 space-y-4">
-        {sales.map((sale) => (
-          <div key={sale.id} className="rounded-2xl bg-white p-5 shadow-soft">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-500">{sale.customer?.name || 'Cliente general'}</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-600">${sale.total.toFixed(2)}</span>
-            </div>
-            <ul className="space-y-2 text-sm text-slate-600">
-              {sale.items.map((item) => (
-                <li key={item.id}>• {item.product.name} — {item.quantity} uds.</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+export default function SalesPage() {
+  const [products, setProducts] = useState<Product[]>([]); const [customers, setCustomers] = useState<Customer[]>([]); const [lines, setLines] = useState<Line[]>([{ productId: '', quantity: '1', unitPrice: '' }]); const [customerId, setCustomerId] = useState(''); const [error, setError] = useState(''); const [message, setMessage] = useState('');
+  useEffect(() => { fetch('/api/sales/options').then(r => r.json()).then(data => { setProducts(data.products || []); setCustomers(data.customers || []); }); }, []);
+  function updateLine(index: number, field: keyof Line, value: string) { setLines(lines.map((line, i) => i === index ? { ...line, [field]: value } : line)); }
+  function selectProduct(index: number, value: string) { const product = products.find(p => p.id === value); updateLine(index, 'productId', value); if (product) updateLine(index, 'unitPrice', String(product.unitPrice)); }
+  async function submit(e: React.FormEvent) { e.preventDefault(); setError(''); setMessage(''); const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: customerId || null, items: lines.map(l => ({ productId: l.productId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) })) }) }); const data = await res.json(); if (!res.ok) { setError(data.error); return; } setMessage('Venta registrada y stock actualizado.'); setLines([{ productId: '', quantity: '1', unitPrice: '' }]); setCustomerId(''); }
+  const total = lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unitPrice || 0), 0);
+  return <div className="p-6 md:p-10"><p className="text-sm font-semibold text-brand-600">Ventas</p><h1 className="mt-1 text-3xl font-bold">Registrar venta</h1><form onSubmit={submit} className="mt-8 max-w-4xl rounded-2xl bg-white p-6 shadow-soft"><label className="block max-w-sm text-sm font-semibold">Cliente<select value={customerId} onChange={e => setCustomerId(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3"><option value="">Cliente general</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="mt-6 space-y-3">{lines.map((line, index) => <div key={index} className="grid gap-3 md:grid-cols-[1fr_120px_140px_auto]"><select required value={line.productId} onChange={e => selectProduct(index, e.target.value)} className="rounded-xl border border-slate-200 px-3 py-3"><option value="">Selecciona producto</option>{products.map(p => <option key={p.id} value={p.id}>{p.name} · stock {p.stock}</option>)}</select><input required min="1" type="number" value={line.quantity} onChange={e => updateLine(index, 'quantity', e.target.value)} className="rounded-xl border border-slate-200 px-3 py-3" placeholder="Cantidad" /><input required min="0" step="0.01" type="number" value={line.unitPrice} onChange={e => updateLine(index, 'unitPrice', e.target.value)} className="rounded-xl border border-slate-200 px-3 py-3" placeholder="Precio" /><button type="button" disabled={lines.length === 1} onClick={() => setLines(lines.filter((_, i) => i !== index))} className="rounded-xl bg-red-50 px-3 font-bold text-red-600 disabled:opacity-40">×</button></div>)}</div><button type="button" onClick={() => setLines([...lines, { productId: '', quantity: '1', unitPrice: '' }])} className="mt-4 text-sm font-bold text-brand-600">+ Agregar producto</button><div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t pt-5"><strong className="text-xl">Total: ${total.toFixed(2)}</strong><button className="rounded-xl bg-brand-600 px-6 py-3 font-bold text-white hover:bg-brand-700">Confirmar venta</button></div>{error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}{message && <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-600">{message}</p>}</form></div>;
 }
