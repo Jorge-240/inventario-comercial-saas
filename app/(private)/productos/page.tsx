@@ -1,4 +1,204 @@
 'use client';
-import { FormEvent, useEffect, useState } from 'react';
-type Product = { id: string; name: string; sku: string; brand?: string; stock: number; minStock: number; unitPrice: number; costPrice: number; category?: { name: string } };
-export default function ProductsPage() { const [products, setProducts] = useState<Product[]>([]); const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [error, setError] = useState(''); const [form, setForm] = useState({ name: '', sku: '', brand: '', unitPrice: '', costPrice: '', stock: '', minStock: '' }); async function load() { const res = await fetch('/api/products?q=' + encodeURIComponent(query)); setProducts(await res.json()); } useEffect(() => { load(); }, [query]); async function submit(e: FormEvent) { e.preventDefault(); const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); if (!res.ok) { setError((await res.json()).error); return; } setForm({ name: '', sku: '', brand: '', unitPrice: '', costPrice: '', stock: '', minStock: '' }); setError(''); setOpen(false); load(); } return <div className="p-6 md:p-10"><header className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold text-brand-600">Catálogo</p><h1 className="mt-1 text-3xl font-bold">Productos</h1><p className="mt-2 text-slate-500">Administra los artículos de tu empresa.</p></div><button onClick={() => setOpen(true)} className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white hover:bg-brand-700">+ Nuevo producto</button></header><div className="mb-5 rounded-2xl bg-white p-4 shadow-soft"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar por nombre o SKU..." className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500" /></div><div className="overflow-x-auto rounded-2xl bg-white shadow-soft"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-400"><tr><th className="p-5">Producto</th><th>SKU</th><th>Categoría</th><th>Stock</th><th>Precio</th></tr></thead><tbody>{products.map(p => <tr key={p.id} className="border-t border-slate-100"><td className="p-5 font-semibold">{p.name}<span className="block text-xs font-normal text-slate-400">{p.brand || 'Sin marca'}</span></td><td className="text-slate-500">{p.sku}</td><td className="text-slate-500">{p.category?.name || 'Sin categoría'}</td><td className={p.stock <= p.minStock ? 'font-bold text-orange-500' : 'font-bold text-emerald-500'}>{p.stock} uds.</td><td className="font-semibold">${p.unitPrice.toFixed(2)}</td></tr>)}</tbody></table>{!products.length && <p className="p-10 text-center text-slate-400">No hay productos para mostrar.</p>}</div>{open && <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl"><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-bold">Nuevo producto</h2><button type="button" onClick={() => setOpen(false)} className="text-2xl text-slate-400">×</button></div><div className="grid gap-4 sm:grid-cols-2">{[['name','Nombre'],['sku','SKU'],['brand','Marca'],['unitPrice','Precio de venta'],['costPrice','Costo'],['stock','Stock inicial'],['minStock','Stock mínimo']].map(([key,label]) => <label key={key} className="text-sm font-semibold">{label}<input required={['name','sku'].includes(key)} type={key.includes('Price') || key === 'stock' || key === 'minStock' ? 'number' : 'text'} step="0.01" value={form[key as keyof typeof form]} onChange={e => setForm({ ...form, [key]: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500" /></label>)}</div>{error && <p className="mt-3 text-sm text-red-600">{error}</p>}<button className="mt-6 w-full rounded-xl bg-brand-600 py-3 font-bold text-white">Guardar producto</button></form></div>}</div> }
+import { useEffect, useState } from 'react';
+
+type Product = {
+  id: string;
+  name: string;
+  sku: string;
+  brand?: string | null;
+  stock: number;
+  minStock: number;
+  unitPrice: number;
+  costPrice: number;
+  category?: { name: string } | null;
+};
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    name: '',
+    sku: '',
+    brand: '',
+    unitPrice: '',
+    costPrice: '',
+    stock: '',
+    minStock: '',
+  });
+
+  async function loadProducts() {
+    const res = await fetch('/api/products?q=' + encodeURIComponent(query));
+    const data = await res.json();
+    setProducts(data);
+  }
+
+  useEffect(() => { loadProducts(); }, [query]);
+
+  async function submitForm(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error || 'No se pudo guardar');
+      return;
+    }
+
+    setForm({ name: '', sku: '', brand: '', unitPrice: '', costPrice: '', stock: '', minStock: '' });
+    setOpen(false);
+    loadProducts();
+  }
+
+  return (
+    <div className="p-6 md:p-10">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-brand-600">Catálogo</p>
+          <h1 className="mt-1 text-3xl font-bold">Productos</h1>
+          <p className="mt-2 text-slate-500">Administra los artículos de tu empresa.</p>
+        </div>
+
+        <button onClick={() => setOpen(true)} className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white hover:bg-brand-700">
+          + Nuevo producto
+        </button>
+      </header>
+
+      <div className="mb-5 rounded-2xl bg-white p-4 shadow-soft">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar por nombre o SKU..."
+          className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-500"
+        />
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl bg-white shadow-soft">
+        <table className="w-full min-w-[700px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-400">
+            <tr>
+              <th className="p-5">Producto</th>
+              <th>SKU</th>
+              <th>Categoría</th>
+              <th>Stock</th>
+              <th>Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p.id} className="border-t border-slate-100">
+                <td className="p-5 font-semibold">
+                  {p.name}
+                  <span className="block text-xs font-normal text-slate-400">{p.brand || 'Sin marca'}</span>
+                </td>
+                <td className="text-slate-500">{p.sku}</td>
+                <td className="text-slate-500">{p.category?.name || 'Sin categoría'}</td>
+                <td className={p.stock <= p.minStock ? 'font-bold text-orange-500' : 'font-bold text-emerald-500'}>
+                  {p.stock} uds.
+                </td>
+                <td className="font-semibold">${p.unitPrice.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {!products.length && <p className="p-10 text-center text-slate-400">No hay productos para mostrar.</p>}
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-950/50 p-4">
+          <form onSubmit={submitForm} className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Nuevo producto</h2>
+              <button type="button" onClick={() => setOpen(false)} className="text-2xl text-slate-400">×</button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-semibold">
+                Nombre
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+
+              <label className="text-sm font-semibold">
+                SKU
+                <input
+                  required
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+
+              <label className="text-sm font-semibold">
+                Marca
+                <input
+                  value={form.brand}
+                  onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+
+              <label className="text-sm font-semibold">
+                Precio de venta
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.unitPrice}
+                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+
+              <label className="text-sm font-semibold">
+                Costo
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.costPrice}
+                  onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+
+              <label className="text-sm font-semibold">
+                Stock inicial
+                <input
+                  type="number"
+                  value={form.stock}
+                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+
+              <label className="text-sm font-semibold">
+                Stock mínimo
+                <input
+                  type="number"
+                  value={form.minStock}
+                  onChange={(e) => setForm({ ...form, minStock: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-brand-500"
+                />
+              </label>
+            </div>
+
+            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+            <button className="mt-6 w-full rounded-xl bg-brand-600 py-3 font-bold text-white">Guardar producto</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
