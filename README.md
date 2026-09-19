@@ -1,32 +1,11 @@
 # Inventario Comercial SaaS
 
-Aplicación base de inventario comercial multi-tenant construida con Next.js, TypeScript, Tailwind CSS y Prisma.
+SaaS multi-tenant para inventario, ventas, compras, contactos, usuarios, facturación y reportes.
 
-## Inicio rápido
+## Estado de la siguiente etapa
 
-```bash
-npm install
-cp .env.example .env
-npx prisma db push
-npm run db:seed
-npm run dev
-```
+La aplicación está preparada para incorporar PostgreSQL, formularios de clientes y proveedores, edición y baja lógica de productos, usuarios y roles, reportes CSV, facturación, pruebas multi-tenant y despliegue seguro.
 
-Abre `http://localhost:3000` y usa:
+## Producción
 
-- Correo: `admin@demo.com`
-- Contraseña: `admin123`
-
-## Multi-tenant
-
-Cada empresa tiene un `companyId`. Las rutas protegidas obtienen la empresa desde la sesión firmada, nunca desde el navegador. Los productos, clientes, proveedores, ventas, compras y movimientos siempre se consultan filtrando por ese identificador.
-
-Para producción, usa PostgreSQL, cambia `DATABASE_URL`, `JWT_SECRET` y configura HTTPS. También se recomienda activar Row-Level Security como defensa adicional.
-
-## Estructura sencilla
-
-- `app/`: páginas y API.
-- `components/`: componentes visuales reutilizables.
-- `lib/auth.ts`: sesión segura en cookie HttpOnly.
-- `lib/db.ts`: cliente Prisma.
-- `prisma/schema.prisma`: modelos y relaciones.
+Configura `DATABASE_URL` y `JWT_SECRET` como secretos del proveedor de hosting. Despliega detrás de HTTPS, no subas archivos `.env`, ejecuta las migraciones durante el release y habilita backups de PostgreSQL.
